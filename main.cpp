@@ -1,10 +1,6 @@
 #include <QCoreApplication>
-#include <pcap.h>
 #include <iostream>
 #include <fstream>
-#include <netinet/in.h>
-#include <netinet/ether.h>
-#include <arpa/inet.h>
 #include <stdio.h>
 
 // Add class made by bearics
