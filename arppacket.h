@@ -1,6 +1,6 @@
 #ifndef PACKET_H
 #define PACKET_H
-#define MAX_LENGTH 42
+#define ARP_PKT_LENGTH 42
 
 #include <pcap.h>
 #include <netinet/in.h>
@@ -13,12 +13,13 @@ using namespace std;
 class ArpPacket
 {
 private:
-    u_char pkt[MAX_LENGTH];
     struct ether_header *eth;
     struct ether_arp *arp;
 public:
+    u_char pkt[ARP_PKT_LENGTH];
     ArpPacket();
     ArpPacket(u_char *ip);
+    u_char* getPkt();
     void setEtherDestMac(u_char * mac);
     void setEtherSourceMac(u_char * mac);
     void setArpSenderMac(u_char * mac);

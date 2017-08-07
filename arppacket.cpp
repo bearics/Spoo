@@ -7,6 +7,7 @@ ArpPacket::ArpPacket() :  eth(0), arp(0)
 {
     *pkt={};
 }
+
 void ArpPacket::setEtherDestMac(u_char * mac)
 {
     eth=(struct ether_header *)pkt;
