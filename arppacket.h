@@ -12,11 +12,10 @@ using namespace std;
 
 class ArpPacket
 {
-private:
-    struct ether_header *eth;
-    struct ether_arp *arp;
 public:
     u_char pkt[ARP_PKT_LENGTH];
+    struct ether_header *eth;
+    struct ether_arp *arp;
     ArpPacket();
     ArpPacket(u_char *ip);
     u_char* getPkt();
