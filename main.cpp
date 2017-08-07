@@ -8,7 +8,7 @@
 
 using namespace std;
 
-int getAttackerInfo(u_char* ip, u_char* mac);
+void getAttackerInfo(u_char* ip, u_char* mac);
 
 int main(int argc, char *argv[])
 {
@@ -21,10 +21,12 @@ int main(int argc, char *argv[])
     cout << "Attacker's IP : " << attackerIP <<endl;
     cout << "Attacker's MAC : " << attackerMAC<<endl;
 
+
+
     return 0;
 }
 
-int getAttackerInfo(u_char* attackerIP, u_char* attackerMAC)
+void getAttackerInfo(u_char* attackerIP, u_char* attackerMAC)
 {
     FILE *fp;
 
@@ -36,5 +38,4 @@ int getAttackerInfo(u_char* attackerIP, u_char* attackerMAC)
     fscanf(fp, "%s", attackerMAC);
     pclose(fp);
 
-    return 0;
 }
