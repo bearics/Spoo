@@ -17,12 +17,15 @@ private:
     struct ether_header *eth;
     struct ether_arp *arp;
 public:
-    Packet();
-    Packet(u_char *ip);
-    void setEtherSenderMac(u_char * mac);
-    void setEtherRecieverMac(u_char * mac);
+    ArpPacket();
+    ArpPacket(u_char *ip);
+    void setEtherDestMac(u_char * mac);
+    void setEtherSourceMac(u_char * mac);
+    void setArpSenderMac(u_char * mac);
     void setArpSenderIP(u_char * ip);
-    void setArpRecieverIP(u_char * ip);
+    void setArpTargetMac(u_char * mac);
+    void setArpTargetIP(u_char * ip);
+
 };
 
 #endif // PACKET_H
