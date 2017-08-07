@@ -10,6 +10,7 @@ using namespace std;
 
 void getAttackerInfo(u_char* ip, u_char* mac);
 void sendPkt(pcap_t *handle, u_char* send_pkt, int size);
+void receivePkt(pcap_t *handle, struct pcap_pkthdr *header, const u_char *pkt);
 
 int main(int argc, char *argv[])
 {
@@ -20,7 +21,7 @@ int main(int argc, char *argv[])
     //char filter_exp[] = "port ";	/* The filter expression */
     bpf_u_int32 mask;		/* Our netmask */
     bpf_u_int32 net;		/* Our IP */
-    //struct pcap_pkthdr *header;	/* The header that pcap gives us */
+    struct pcap_pkthdr *header;	/* The header that pcap gives us */
 
     // attacker's information
     u_char attackerIP[16];     // 255.255.255.255 = 15+1
@@ -61,6 +62,7 @@ int main(int argc, char *argv[])
     spoof.setArpTargetMac((u_char*)"00:00:00:00:00:00");
 
     sendPkt(handle, spoof.pkt, sizeof(spoof.pkt));
+    receivePkt(handle, header, spoof.pkt);
 }
 
 void getAttackerInfo(u_char* attackerIP, u_char* attackerMAC)
@@ -83,4 +85,22 @@ void sendPkt(pcap_t *handle, u_char* send_pkt, int size)
         cout << "Sending ERROR!" << endl;
     else
         cout << "Sending SUCCESS!" << endl;
+}
+
+void receivePkt(pcap_t *handle, struct pcap_pkthdr *header, const u_char *pkt)
+{
+    int res=0;
+    struct ether_header *eth=(struct ether_header *)pkt;
+    struct ether_arp *arp=(struct ether_arp *)(pkt+ETH_HLEN);
+
+    while((res = pcap_next_ex( handle, &header, &pkt)) >= 0){
+        /* Check ARP */
+        if(ntohs(eth->ether_type) == ETHERTYPE_ARP ){
+            //sprintf(targetMAC, "%s", ether_ntoa(((ether_addr*)arp->arp_sha)));
+            cout << "We received\n";
+            for(int i=0;i<42;i++) printf(" %2x", pkt[i]);
+            break;
+        }
+
+    }
 }

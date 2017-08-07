@@ -28,7 +28,6 @@ public:
     void setArpSenderIP(u_char * ip);
     void setArpTargetMac(u_char * mac);
     void setArpTargetIP(u_char * ip);
-
 };
 
 #endif // PACKET_H
