@@ -1,6 +1,6 @@
 #ifndef PACKET_H
 #define PACKET_H
-#define MAX_LENGTH 256
+#define MAX_LENGTH 42
 
 #include <pcap.h>
 #include <netinet/in.h>
@@ -10,7 +10,7 @@
 
 using namespace std;
 
-class Packet
+class ArpPacket
 {
 private:
     u_char pkt[MAX_LENGTH];
@@ -19,10 +19,10 @@ private:
 public:
     Packet();
     Packet(u_char *ip);
-    int getMAC(u_char *ip);
-    int sendPkt(u_char* sender_ip, u_char* sender_mac, u_char* receiver_ip, u_char* receiver_mac, int opcode);
+    void setEtherSenderMac(u_char * mac);
+    void setEtherRecieverMac(u_char * mac);
+    void setArpSenderIP(u_char * ip);
+    void setArpRecieverIP(u_char * ip);
 };
-
-char* getAttackerMAC(char *);
 
 #endif // PACKET_H

@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 // Add class made by bearics
-#include "packet.h"
+#include "arppacket.h"
 
 using namespace std;
 
@@ -14,6 +14,7 @@ int main(int argc, char *argv[])
 {
     u_char attackerIP[16];     // 255.255.255.255 = 15+1
     u_char attackerMAC[18];    // FF:FF:FF:FF:FF:FF = 17+1
+
 
     getAttackerInfo(attackerIP, attackerMAC);
 
