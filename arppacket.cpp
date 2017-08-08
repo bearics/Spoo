@@ -9,6 +9,16 @@ ArpPacket::ArpPacket() :  eth(0), arp(0)
     setArpFormat();
 }
 
+void ArpPacket::printPkt()
+{
+    cout << "packet" << endl;
+    for(int i=0;i<42;i++)
+    {
+        printf("%02x ", pkt[i]);
+        if(i%5==0)  printf("\n");
+    }
+}
+
 void ArpPacket::setArpFormat()
 {
     eth=(struct ether_header *)pkt;

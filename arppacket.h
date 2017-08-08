@@ -19,6 +19,7 @@ public:
     ArpPacket();
     ArpPacket(u_char *ip);
     u_char* getPkt();
+    void printPkt();
     void setArpFormat();
     void setEtherDestMac(u_char * mac);
     void setEtherSourceMac(u_char * mac);
