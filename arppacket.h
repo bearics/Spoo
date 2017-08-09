@@ -31,11 +31,5 @@ public:
     void setArpTargetIP(u_char * ip);
 };
 
-class MyThread : public thread
-{
-public:
-    bool active{true};
-    void close() { active = false; };
-};
 
 #endif // PACKET_H
