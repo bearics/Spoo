@@ -77,14 +77,12 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Couldn't open device %s: %s\n", argv[1], errbuf);
         return(2);
     }
-
-
-    //thread t(&receivePkt, handle, header);
-    //t.join();
-
+    // Set infected pkt
     sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
     sendPkt(handle, a2t.pkt, sizeof(a2t.pkt));
-    thread t(&setInfectedPkt, handle, header);
+    setInfectedPkt(handle, header);
+
+    thread t(&receivePkt, handle, header);
     t.join();
 
 }
