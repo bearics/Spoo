@@ -44,7 +44,7 @@ void ArpPacket::setEtherSourceMac(u_char * mac)
 void ArpPacket::setArpOpcode(int opcode)
 {
     arp=(struct ether_arp *)(pkt+ETH_HLEN);
-    arp->arp_op  = htons(ARPOP_REQUEST);
+    arp->arp_op = htons(opcode);
 }
 
 void ArpPacket::setArpSenderMac(u_char * mac)

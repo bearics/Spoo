@@ -7,6 +7,7 @@
 #include <netinet/ether.h>
 #include <arpa/inet.h>
 #include <iostream>
+#include <thread>
 
 using namespace std;
 
@@ -28,6 +29,13 @@ public:
     void setArpSenderIP(u_char * ip);
     void setArpTargetMac(u_char * mac);
     void setArpTargetIP(u_char * ip);
+};
+
+class MyThread : public thread
+{
+public:
+    bool active{true};
+    void close() { active = false; };
 };
 
 #endif // PACKET_H
